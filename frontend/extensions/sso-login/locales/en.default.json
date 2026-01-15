@@ -1,0 +1,29 @@
+{
+  "name": "SSO Login",
+  "settings": {
+    "enabled": {
+      "label": "Enable SSO Login"
+    },
+    "idp_url": {
+      "label": "IDP Backend URL"
+    },
+    "enable_sso": {
+      "label": "Enterprise SSO"
+    },
+    "sso_text": {
+      "label": "SSO Button Text"
+    },
+    "enable_google": {
+      "label": "Google Login"
+    },
+    "enable_microsoft": {
+      "label": "Microsoft Login"
+    },
+    "button_color": {
+      "label": "Primary Button Color"
+    },
+    "button_text_color": {
+      "label": "Primary Button Text Color"
+    }
+  }
+}

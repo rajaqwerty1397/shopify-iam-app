@@ -1,0 +1,164 @@
+/**
+ * SSO Login Button Styles
+ * Compatible with all Shopify themes
+ * Using high specificity to override theme styles
+ */
+
+#sso-login-container.sso-login-container {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 24px auto !important;
+  padding: 24px 15px 0 !important;
+  border-top: 1px solid #e5e5e5 !important;
+  width: 100% !important;
+  max-width: 400px !important;
+  box-sizing: border-box !important;
+}
+
+#sso-login-container .sso-login-divider {
+  display: flex !important;
+  align-items: center !important;
+  text-align: center !important;
+  margin-bottom: 16px !important;
+}
+
+#sso-login-container .sso-login-divider::before,
+#sso-login-container .sso-login-divider::after {
+  content: '' !important;
+  flex: 1 !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+}
+
+#sso-login-container .sso-login-divider span {
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  color: #666 !important;
+  text-transform: lowercase !important;
+  white-space: nowrap !important;
+  background: transparent !important;
+}
+
+#sso-login-container .sso-login-buttons {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+#sso-login-container .sso-login-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  padding: 12px 20px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  border: 1px solid #ddd !important;
+  background: #fff !important;
+  color: #333 !important;
+  font-family: inherit !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
+  height: auto !important;
+  min-height: 44px !important;
+}
+
+#sso-login-container .sso-login-btn:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-1px) !important;
+}
+
+#sso-login-container .sso-login-btn:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+#sso-login-container .sso-login-btn:focus {
+  outline: 2px solid #000 !important;
+  outline-offset: 2px !important;
+}
+
+#sso-login-container .sso-login-btn--primary {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: #000 !important;
+}
+
+#sso-login-container .sso-login-btn--primary:hover {
+  opacity: 0.9 !important;
+}
+
+#sso-login-container .sso-login-btn--google {
+  background: #fff !important;
+  color: #333 !important;
+  border-color: #ddd !important;
+}
+
+#sso-login-container .sso-login-btn--google:hover {
+  background: #f8f8f8 !important;
+  border-color: #ccc !important;
+}
+
+#sso-login-container .sso-login-btn--microsoft {
+  background: #fff !important;
+  color: #333 !important;
+  border-color: #ddd !important;
+}
+
+#sso-login-container .sso-login-btn--microsoft:hover {
+  background: #f8f8f8 !important;
+  border-color: #ccc !important;
+}
+
+#sso-login-container .sso-login-icon {
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  #sso-login-container .sso-login-btn {
+    padding: 14px 16px !important;
+    font-size: 15px !important;
+  }
+  
+  #sso-login-container.sso-login-container {
+    margin-top: 20px !important;
+    padding-top: 20px !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  #sso-login-container .sso-login-btn {
+    border-width: 2px !important;
+  }
+  
+  #sso-login-container .sso-login-divider::before,
+  #sso-login-container .sso-login-divider::after {
+    border-bottom-width: 2px !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  #sso-login-container .sso-login-btn {
+    transition: none !important;
+  }
+  
+  #sso-login-container .sso-login-btn:hover {
+    transform: none !important;
+  }
+}

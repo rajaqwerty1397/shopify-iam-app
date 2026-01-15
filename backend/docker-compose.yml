@@ -1,0 +1,101 @@
+# =============================================================================
+# PERSONA SSO - Docker Compose (Development)
+# =============================================================================
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: persona-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-persona}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-persona}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-persona} -d ${POSTGRES_DB:-persona}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: persona-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application (Development)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: persona-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      HOST: ${HOST:-0.0.0.0}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      APP_URL: ${APP_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-persona}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-persona}?schema=public
+      REDIS_URL: redis://redis:6379
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PASSWORD_PEPPER: ${PASSWORD_PEPPER}
+      SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
+      SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET}
+      SHOPIFY_SCOPES: ${SHOPIFY_SCOPES:-customer_read_companies,customer_write_companies,customer_write_customers,customer_read_customers}
+      SHOPIFY_APP_URL: ${SHOPIFY_APP_URL}
+      SHOPIFY_APP_HANDLE: ${SHOPIFY_APP_HANDLE}
+      SESSION_SECRET: ${SESSION_SECRET}
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ./src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prisma Studio (Database GUI)
+  prisma-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: persona-prisma-studio
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-persona}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-persona}?schema=public
+    ports:
+      - "${PRISMA_STUDIO_PORT:-5555}:5555"
+    command: ["npx", "prisma", "studio", "--port", "5555", "--hostname", "0.0.0.0"]
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: persona-network

@@ -1,0 +1,36 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "ee14c2f59f700ddea6b36b66cd112905"
+name = "Alintro IAM"
+application_url = "https://merriest-bigamously-lyman.ngrok-free.dev"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2024-10"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_customers,read_products,write_customers,write_products"
+
+[auth]
+redirect_urls = [
+  "https://merriest-bigamously-lyman.ngrok-free.dev/auth/callback",
+  "https://merriest-bigamously-lyman.ngrok-free.dev/auth/shopify/callback",
+  "https://merriest-bigamously-lyman.ngrok-free.dev/api/auth/callback"
+]
+
+[app_proxy]
+url = "https://kathy-philips-rounds-items.trycloudflare.com/api/proxy"
+subpath = "sso"
+prefix = "apps"
+
+[pos]
+embedded = false

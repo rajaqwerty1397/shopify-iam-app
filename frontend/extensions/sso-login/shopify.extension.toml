@@ -1,0 +1,10 @@
+api_version = "2024-10"
+
+[[extensions]]
+uid = "01703237-1bf0-0b29-10e6-de1297b3a2a4719ef664"
+type = "theme"
+name = "SSO Login"
+handle = "sso-login"
+
+[extensions.capabilities]
+app_embed = { enabled = true }

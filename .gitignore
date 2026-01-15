@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude temporary files
+.claude/
+tmpclaude-*
+nul
+
+# Documentation files (generated)
+*.md
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker volumes
+postgres_data/
+redis_data/
+
+# Shopify
+.shopify/
+
+# Executables
+cloudflared.exe
+
+# Temporary scripts
+*check-urls.mjs
+*fix-*.mjs

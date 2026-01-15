@@ -1,0 +1,454 @@
+{% comment %}
+  SSO Login App Embed
+  Automatically injects SSO buttons into the login form
+  Configuration is managed in the Alintro IAM app settings
+{% endcomment %}
+
+<script>
+  (function() {
+    'use strict';
+
+    var shopDomain = {{ shop.permanent_domain | json }};
+
+    function isLoginPage() {
+      var path = window.location.pathname;
+      if (path.includes('/register')) return false;
+      return path.includes('/account/login') || path.includes('/login');
+    }
+
+    function loadSSOConfig() {
+      // Use app proxy - this is the most reliable method
+      // The app proxy routes through Shopify to the backend automatically
+      var configUrl = '/apps/sso/config?shop=' + encodeURIComponent(shopDomain);
+      
+      return fetch(configUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+        .then(function(res) {
+          var contentType = res.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            console.log('SSO: Config endpoint returned non-JSON:', contentType);
+            throw new Error('Non-JSON response');
+          }
+          if (!res.ok) {
+            throw new Error('HTTP ' + res.status);
+          }
+          return res.json();
+        })
+        .then(function(data) {
+          // Validate the response has expected structure
+          if (typeof data.enableSso === 'undefined' && !data.providers) {
+            console.log('SSO: Invalid config structure');
+            throw new Error('Invalid config');
+          }
+          console.log('SSO: Config loaded via app proxy', data);
+          return data;
+        })
+        .catch(function(err) {
+          console.warn('SSO: Failed to load config:', err.message);
+          // Return default config (no buttons) if config fails to load
+          return {
+            enableSso: false,
+            providers: [],
+            ssoText: 'Sign in with SSO',
+            buttonColor: '#000000'
+          };
+        });
+    }
+
+    function getProviderIcon(type) {
+      var icons = {
+        google: '<svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>',
+        microsoft: '<svg viewBox="0 0 23 23"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="12" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="12" width="10" height="10" fill="#00A4EF"/><rect x="12" y="12" width="10" height="10" fill="#FFB900"/></svg>',
+        facebook: '<svg viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+        auth0: '<svg viewBox="0 0 24 24" fill="#EB5424"><path d="M21.98 7.448L19.62 0H4.347L2.02 7.448c-1.352 4.312.03 9.206 3.815 12.015L12 24l6.165-4.537c3.785-2.809 5.167-7.703 3.815-12.015zM12 18.88L8.21 15.1l3.79-3.79 3.79 3.79L12 18.88z"/></svg>',
+        default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'
+      };
+      return icons[type] || icons.default;
+    }
+
+    function createSSOButtons(config) {
+      if (!isLoginPage()) return;
+      if (document.getElementById('sso-login-wrapper')) return;
+
+      var loginForm = document.querySelector('form[action*="/account/login"]');
+      if (!loginForm) {
+        console.log('SSO: Login form not found');
+        return;
+      }
+
+      // Check if there are any providers configured
+      var providers = config.providers || [];
+      var hasProviders = providers.length > 0;
+      var hasLegacyConfig = config.enableSso || config.enableGoogle || config.enableMicrosoft;
+
+      if (!hasProviders && !hasLegacyConfig) {
+        console.log('SSO: No providers configured');
+        return;
+      }
+
+      var wrapper = document.createElement('div');
+      wrapper.id = 'sso-login-wrapper';
+
+      var css = '\
+        #sso-login-wrapper {\
+          margin-top: 12px;\
+          padding-top: 12px;\
+          border-top: 1px solid #e5e5e5;\
+        }\
+        #sso-login-wrapper .sso-title {\
+          text-align: center;\
+          font-size: 11px;\
+          color: #888;\
+          margin-bottom: 8px;\
+          text-transform: uppercase;\
+          letter-spacing: 0.5px;\
+        }\
+        #sso-login-wrapper .sso-buttons {\
+          display: flex;\
+          flex-direction: column;\
+          gap: 8px;\
+        }\
+        #sso-login-wrapper .sso-btn {\
+          display: flex;\
+          align-items: center;\
+          justify-content: center;\
+          gap: 8px;\
+          width: 100%;\
+          padding: 12px 16px;\
+          font-size: 14px;\
+          font-weight: 500;\
+          border-radius: 4px;\
+          cursor: pointer;\
+          transition: all 0.2s ease;\
+          border: 1px solid #ddd;\
+          background: #fff;\
+          color: #333;\
+          font-family: inherit;\
+          text-decoration: none;\
+          box-sizing: border-box;\
+          margin: 0;\
+        }\
+        #sso-login-wrapper .sso-btn:hover {\
+          box-shadow: 0 2px 8px rgba(0,0,0,0.12);\
+          transform: translateY(-1px);\
+        }\
+        #sso-login-wrapper .sso-btn svg {\
+          width: 20px;\
+          height: 20px;\
+          flex-shrink: 0;\
+        }\
+      ';
+
+      var styleEl = document.createElement('style');
+      styleEl.textContent = css;
+      document.head.appendChild(styleEl);
+
+      var buttonsHtml = '';
+
+      // If providers array exists and has items, use it
+      if (hasProviders) {
+        providers.forEach(function(provider) {
+          var icon = getProviderIcon(provider.type);
+          buttonsHtml += '<button type="button" class="sso-btn" data-sso="' + provider.type + '" data-provider-id="' + provider.id + '">' +
+            icon +
+            '<span>Continue with ' + provider.name + '</span>' +
+            '</button>';
+        });
+      } else {
+        // Fallback to legacy config
+        if (config.enableSso) {
+          buttonsHtml += '<button type="button" class="sso-btn" data-sso="enterprise">' +
+            getProviderIcon('default') +
+            '<span>' + (config.ssoText || 'Sign in with SSO') + '</span>' +
+            '</button>';
+        }
+
+        if (config.enableGoogle) {
+          buttonsHtml += '<button type="button" class="sso-btn" data-sso="google">' +
+            getProviderIcon('google') +
+            '<span>Continue with Google</span>' +
+            '</button>';
+        }
+
+        if (config.enableMicrosoft) {
+          buttonsHtml += '<button type="button" class="sso-btn" data-sso="microsoft">' +
+            getProviderIcon('microsoft') +
+            '<span>Continue with Microsoft</span>' +
+            '</button>';
+        }
+      }
+
+      if (!buttonsHtml) return;
+
+      wrapper.innerHTML = '<div class="sso-title">or continue with</div><div class="sso-buttons">' + buttonsHtml + '</div>';
+      loginForm.appendChild(wrapper);
+
+      wrapper.addEventListener('click', function(e) {
+        var btn = e.target.closest('.sso-btn');
+        if (!btn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        var ssoType = btn.getAttribute('data-sso');
+        
+        // Use app proxy for OAuth - routes through Shopify to backend automatically
+        var redirectUrl = '/apps/sso';
+
+        if (ssoType === 'enterprise') {
+          redirectUrl += '/login';
+        } else {
+          redirectUrl += '/auth/' + ssoType;
+        }
+        redirectUrl += '?shop=' + encodeURIComponent(shopDomain);
+        redirectUrl += '&return_to=' + encodeURIComponent(window.location.href);
+
+        console.log('SSO: Redirecting to OAuth via app proxy:', redirectUrl);
+
+        // Full page redirect (no popup)
+        window.location.href = redirectUrl;
+      });
+
+      console.log('SSO: Login buttons injected with', hasProviders ? providers.length : 'legacy', 'provider(s)');
+    }
+
+      // Listen for postMessage from popup window
+      window.addEventListener('message', function(event) {
+        // Handle credentials for auto-filling login form
+        if (event.data && event.data.type === 'sso_login_credentials') {
+          console.log('SSO: Login credentials received, auto-filling form...');
+          
+          var email = event.data.email;
+          var password = event.data.password;
+          var returnTo = event.data.returnTo || '/account';
+          
+          // Find login form
+          var loginForm = document.querySelector('form[action*="/account/login"]') || 
+                         document.querySelector('form[action*="/account"]') ||
+                         document.querySelector('form');
+          
+          if (loginForm) {
+            // Find email and password fields
+            var emailField = loginForm.querySelector('input[type="email"]') || 
+                           loginForm.querySelector('input[name*="email"]') ||
+                           loginForm.querySelector('input[id*="Email"]');
+            var passwordField = loginForm.querySelector('input[type="password"]') ||
+                              loginForm.querySelector('input[name*="password"]') ||
+                              loginForm.querySelector('input[id*="Password"]');
+            
+            if (emailField && passwordField) {
+              // Fill the form
+              emailField.value = email;
+              passwordField.value = password;
+              
+              // Trigger input events to ensure form validation
+              emailField.dispatchEvent(new Event('input', { bubbles: true }));
+              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+              
+              console.log('SSO: Form filled, submitting...');
+              
+              // Submit the form after a short delay to ensure fields are set
+              setTimeout(function() {
+                loginForm.submit();
+              }, 100);
+            } else {
+              console.error('SSO: Could not find email/password fields');
+              // Fallback: redirect to account page
+              window.location.href = returnTo;
+            }
+          } else {
+            console.error('SSO: Could not find login form');
+            // Fallback: redirect to account page
+            window.location.href = returnTo;
+          }
+        }
+        
+        // Handle redirect for multipass or other methods
+        if (event.data && event.data.type === 'sso_login_success') {
+          console.log('SSO: Login success message received');
+          window.location.href = event.data.redirectUrl || '/account';
+        }
+      });
+
+    // Check for SSO credentials token in URL (from OAuth callback redirect)
+    function checkForSSOCredentials() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var ssoToken = urlParams.get('sso_token');
+      
+      if (ssoToken) {
+        console.log('SSO: Found token in URL, fetching credentials...', {
+          tokenLength: ssoToken.length,
+          tokenPreview: ssoToken.substring(0, 8) + '...'
+        });
+        
+        // Remove token from URL to keep it clean
+        var newUrl = window.location.pathname;
+        var newSearch = new URLSearchParams(window.location.search);
+        newSearch.delete('sso_token');
+        if (newSearch.toString()) {
+          newUrl += '?' + newSearch.toString();
+        }
+        window.history.replaceState({}, '', newUrl);
+        
+        // Fetch credentials from backend via app proxy
+        var credentialsUrl = '/apps/sso/credentials?token=' + encodeURIComponent(ssoToken);
+        console.log('SSO: Fetching credentials from app proxy');
+        
+        fetch(credentialsUrl)
+          .then(function(res) {
+            console.log('SSO: Credentials response status:', res.status);
+            if (!res.ok) {
+              // Try to get error details
+              return res.json().then(function(errorData) {
+                throw new Error('Failed to fetch credentials: ' + JSON.stringify(errorData));
+              }).catch(function() {
+                throw new Error('Failed to fetch credentials: HTTP ' + res.status);
+              });
+            }
+            return res.json();
+          })
+          .then(function(data) {
+            console.log('SSO: Credentials response:', { 
+              hasEmail: !!data.email, 
+              hasPassword: !!data.password,
+              returnTo: data.returnTo 
+            });
+            if (data.email && data.password) {
+              console.log('SSO: Credentials received, filling form...');
+              fillAndSubmitForm(data.email, data.password, data.returnTo || '/account');
+            } else {
+              console.error('SSO: Invalid credentials response:', data);
+            }
+          })
+          .catch(function(err) {
+            console.error('SSO: Failed to fetch credentials:', err.message || err);
+          });
+      }
+    }
+    
+    // Fill form and attempt to submit (user may need to complete CAPTCHA)
+    function fillAndSubmitForm(email, password, returnTo) {
+      // Find login form
+      var loginForm = document.querySelector('form[action*="/account/login"]') || 
+                     document.querySelector('form[action*="/account"]') ||
+                     document.querySelector('form');
+      
+      if (!loginForm) {
+        console.error('SSO: Could not find login form');
+        setTimeout(function() {
+          window.location.href = returnTo;
+        }, 2000);
+        return;
+      }
+      
+      // Find email and password fields
+      var emailField = loginForm.querySelector('input[type="email"]') || 
+                     loginForm.querySelector('input[name*="email"]') ||
+                     loginForm.querySelector('input[id*="Email"]');
+      var passwordField = loginForm.querySelector('input[type="password"]') ||
+                        loginForm.querySelector('input[name*="password"]') ||
+                        loginForm.querySelector('input[id*="Password"]');
+      
+      if (!emailField || !passwordField) {
+        console.error('SSO: Could not find email/password fields');
+        setTimeout(function() {
+          window.location.href = returnTo;
+        }, 2000);
+        return;
+      }
+      
+      // Fill the form
+      emailField.value = email;
+      passwordField.value = password;
+      
+      // Trigger input events to ensure form validation
+      emailField.dispatchEvent(new Event('input', { bubbles: true }));
+      emailField.dispatchEvent(new Event('change', { bubbles: true }));
+      passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+      passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      console.log('SSO: Form filled successfully');
+      
+      // Find submit button
+      var submitButton = loginForm.querySelector('button[type="submit"]') ||
+                        loginForm.querySelector('input[type="submit"]') ||
+                        loginForm.querySelector('button');
+      
+      // Show a brief loading message
+      var messageDiv = document.createElement('div');
+      messageDiv.style.cssText = 'background: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px; padding: 12px; margin-top: 12px; color: #1976d2; font-size: 14px; text-align: center;';
+      messageDiv.textContent = '✓ Logging you in automatically...';
+      loginForm.appendChild(messageDiv);
+      
+      // Auto-submit the form after a short delay
+      console.log('SSO: Auto-submitting form...');
+      setTimeout(function() {
+        try {
+          // Try clicking the submit button first (more reliable)
+          if (submitButton) {
+            console.log('SSO: Clicking submit button');
+            submitButton.click();
+          } else {
+            // Fallback to form submit
+            console.log('SSO: Submitting form directly');
+            loginForm.submit();
+          }
+        } catch (e) {
+          console.error('SSO: Auto-submit failed:', e);
+          messageDiv.textContent = '✓ Form filled. Please click "Sign in" to complete login.';
+          messageDiv.style.background = '#fff3cd';
+          messageDiv.style.borderColor = '#ffc107';
+          messageDiv.style.color = '#856404';
+        }
+      }, 500);
+      
+      // Fallback: remove message after 10 seconds if still there
+      setTimeout(function() {
+        if (messageDiv.parentNode) {
+          messageDiv.style.opacity = '0';
+          messageDiv.style.transition = 'opacity 0.5s ease';
+          setTimeout(function() {
+            if (messageDiv.parentNode) {
+              messageDiv.parentNode.removeChild(messageDiv);
+            }
+          }, 500);
+        }
+      }, 5000);
+      
+      console.log('SSO: Form ready - user should click Sign in button');
+    }
+
+    function init() {
+      if (!isLoginPage()) return;
+
+      // Check for SSO credentials first
+      checkForSSOCredentials();
+
+      loadSSOConfig().then(function(config) {
+        console.log('SSO: Config loaded', config);
+        createSSOButtons(config);
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+
+    // Retry after delay in case DOM isn't ready
+    setTimeout(init, 1000);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Alintro SSO Login",
+  "target": "head",
+  "settings": []
+}
+{% endschema %}
